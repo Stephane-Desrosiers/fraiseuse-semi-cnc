@@ -36,9 +36,9 @@ Raspberry Pi (ou Windows)          Teensy 4.x
 - `Serial1` → debug via Serial Monitor PlatformIO
 
 ## Protocole de communication série
-*À définir — format JSON ou trames binaires structurées*
-- Commandes : ex. `JOG X+0.1`, `HOME X`, `SET_FEEDRATE 500`
-- Statuts retournés : position X/Y/Z, état fins de course, alertes
+- Format : **JSON newline-delimited** (décision finale)
+- Baud : 115200, délimiteur `\n`, timeout ACK 200ms
+- Voir `memory/project_protocol.md` pour la structure complète
 
 ## Structure du projet
 ```
@@ -60,6 +60,11 @@ fraiseuse semi-cnc/
 - Préfère exécuter les scripts lui-même
 - Veut des backups avant modifications importantes
 - Communication en français
+
+## Fichiers mémoire Claude
+Les fichiers mémoire sont dans `memory/` (versionné dans Git).
+Sur une nouvelle machine, copier le contenu de `memory/` vers :
+`C:\Users\<user>\.claude\projects\<slug-du-projet>\memory\`
 
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)
