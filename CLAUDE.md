@@ -39,7 +39,7 @@ Raspberry Pi (ou Windows)          Teensy 4.x
 ## Protocole de communication série
 - Format : **JSON newline-delimited** (décision finale)
 - Baud : 115200, délimiteur `\n`, timeout ACK 200ms
-- Voir `memory/project_protocol.md` pour la structure complète
+- Voir `Claude memory/project_protocol.md` pour la structure complète
 
 ## Structure du projet
 ```
@@ -63,8 +63,8 @@ fraiseuse semi-cnc/
 - Communication en français
 
 ## Fichiers mémoire Claude
-Les fichiers mémoire sont dans `memory/` (versionné dans Git).
-Sur une nouvelle machine, copier le contenu de `memory/` vers :
+Les fichiers mémoire sont dans `Claude memory/` (versionné dans Git).
+Sur une nouvelle machine, copier le contenu de `Claude memory/` vers :
 `C:\Users\<user>\.claude\projects\<slug-du-projet>\memory\`
 
 ## Règles iGaging AbsoluteDRO Plus
@@ -73,7 +73,7 @@ Sur une nouvelle machine, copier le contenu de `memory/` vers :
 - Câblage via breakout board USB Micro-B femelle vers GPIO Teensy
 - Clock (D-), Data (D+), REQ (tirer à GND), alimentation 3.3V
 - Objectif : DRO custom + boucle d'asservissement position (règle → Teensy → moteur)
-- Voir `memory/project_igaging.md` pour les détails complets
+- Voir `Claude memory/project_igaging.md` pour les détails complets
 
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)
