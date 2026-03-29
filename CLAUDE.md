@@ -23,6 +23,7 @@ Raspberry Pi (ou Windows)          Teensy 4.x
 - **Drivers moteur** : TMC5160 (SPI), drives StepperOnline
 - **Librairie moteur** : TMCStepper
 - **Encodeurs** : SameSky AMT10E2 (incrémentaux, interruptions hardware)
+- **Règles DRO** : iGaging AbsoluteDRO Plus #35-806-A (protocole 52 bits BCD, 3.3V)
 - **Boutons** : librairie Bounce2 (debouncing)
 - **Servos** : PWM hardware Teensy
 
@@ -65,6 +66,14 @@ fraiseuse semi-cnc/
 Les fichiers mémoire sont dans `memory/` (versionné dans Git).
 Sur une nouvelle machine, copier le contenu de `memory/` vers :
 `C:\Users\<user>\.claude\projects\<slug-du-projet>\memory\`
+
+## Règles iGaging AbsoluteDRO Plus
+- 2 axes installés (X, Y), 3e (Z) à venir
+- Connecteur USB Micro-B mais **ce n'est PAS du USB** — protocole propriétaire
+- Câblage via breakout board USB Micro-B femelle vers GPIO Teensy
+- Clock (D-), Data (D+), REQ (tirer à GND), alimentation 3.3V
+- Objectif : DRO custom + boucle d'asservissement position (règle → Teensy → moteur)
+- Voir `memory/project_igaging.md` pour les détails complets
 
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)

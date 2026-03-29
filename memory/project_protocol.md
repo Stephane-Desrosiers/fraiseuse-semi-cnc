@@ -22,4 +22,7 @@ Questions ouvertes — à répondre via le cahier des charges :
 3. Fins de course : capteurs physiques, stallGuard, ou les deux ?
 4. JOG : mode incrémental seulement ou aussi mode continu (bouton maintenu) ?
 
+Intégration iGaging AbsoluteDRO Plus (protocole 52 bits BCD) pour lecture de position.
+Objectif : DRO custom + boucle d'asservissement position (règle → Teensy → correction moteur).
+
 Prochaine étape : Steph envoie le cahier des charges en PDF pour finaliser l'architecture.

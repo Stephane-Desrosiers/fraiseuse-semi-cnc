@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/**)",
+      "Read(///billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/claude-config/projects/**)",
+      "Read(///billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/claude-config/projects/Fraiseuse-semi-cnc/**)",
+      "Read(///billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/claude-config/projects/Fraiseuse-semi-cnc/memory/**)",
+      "WebFetch(domain:www.yuriystoys.com)",
+      "WebFetch(domain:www.shumatech.com)",
+      "WebFetch(domain:www.touchdro.com)",
+      "WebFetch(domain:rysium.com)",
+      "Read(///billmousfs2/WD_5TB/-=Datas Stephane=-/-=Machining=-/Projets/05-Fraiseuse semi-cnc/**)",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\electro1\\.claude\\projects\\--billmousfs2-WD-5TB---Datas-Stephane-----Machining---Projets-05-Fraiseuse-semi-cnc\\memory",
+      "C:\\Users\\electro1\\.claude"
+    ]
+  }
+}
