@@ -7,3 +7,4 @@
 | [project_setup.md](project_setup.md) | project | Dépôt GitHub privé créé, chemin gh CLI |
 | [project_protocol.md](project_protocol.md) | project | Protocole JSON choisi, structure de base définie, questions en attente du cahier des charges |
 | [project_igaging.md](project_igaging.md) | project | Règles iGaging AbsoluteDRO Plus 52 bits BCD — câblage, protocole, objectif asservissement |
+| [project_hardware.md](project_hardware.md) | project | Pi 5 + Teensy 4.x confirmé, Arduino écarté, liste d'achats |

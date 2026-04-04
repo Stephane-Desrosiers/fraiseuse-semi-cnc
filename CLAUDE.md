@@ -7,13 +7,14 @@ contrôlée via une interface graphique PyQt6 sur Raspberry Pi ou Windows.
 ## Architecture générale
 
 ```
-Raspberry Pi (ou Windows)          Teensy 4.x
+Raspberry Pi 5 (4GB)               Teensy 4.x
 ┌─────────────────────┐  USB/Série  ┌──────────────────────┐
-│ PyQt6 GUI            │ ←────────→ │ Contrôle moteurs      │
-│ Écran tactile        │            │ Lecture encodeurs     │
-│ Logique haute niveau │            │ Debouncing boutons    │
-│                      │            │ Temps réel            │
-└─────────────────────┘            └──────────────────────┘
+│ PyQt6 GUI            │ ←────────→ │ 3× règles iGaging     │
+│ Écran tactile 7"     │            │ 3× encodeurs quadrat. │
+│ Mémo positions X/Y/Z │            │ 3× moteurs TMC5160    │
+│ Logique haute niveau │            │ Joystick 2 axes       │
+└─────────────────────┘            │ Boucle asservissement │
+                                    └──────────────────────┘
 ```
 
 ## Stack technique
@@ -27,10 +28,11 @@ Raspberry Pi (ou Windows)          Teensy 4.x
 - **Boutons** : librairie Bounce2 (debouncing)
 - **Servos** : PWM hardware Teensy
 
-### Côté Python
+### Côté Raspberry Pi 5 (Python)
 - **GUI** : PyQt6 + Qt Designer (fichiers .ui)
+- **Écran** : tactile 7" officiel (DSI)
 - **Communication série** : pyserial
-- **Plateforme** : Windows 11 ou Raspberry Pi
+- **Plateforme** : Raspberry Pi 5 (4 GB) — développement aussi possible sur Windows 11
 
 ## Ports série Teensy
 - `Serial` (USB) → commandes/données vers Python
