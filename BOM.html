@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM — Fraiseuse Semi-CNC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.95em;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background-color: #16213e;
+            border-radius: 10px;
+            padding: 20px 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .section h2 {
+            color: #00d4ff;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 .icon {
+            font-size: 1.4em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #0f3460;
+            color: #00d4ff;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1a1a3e;
+            font-size: 0.93em;
+        }
+
+        tr:hover {
+            background-color: #1a2744;
+        }
+
+        .qty {
+            text-align: center;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .status-achat {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .a-acheter {
+            background-color: #e74c3c33;
+            color: #ff6b6b;
+            border: 1px solid #e74c3c55;
+        }
+
+        .possede {
+            background-color: #2ecc7133;
+            color: #51cf66;
+            border: 1px solid #2ecc7155;
+        }
+
+        .a-confirmer {
+            background-color: #f39c1233;
+            color: #ffd43b;
+            border: 1px solid #f39c1255;
+        }
+
+        .notes {
+            color: #aaa;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+
+        .ref {
+            color: #888;
+            font-size: 0.82em;
+        }
+
+        .summary {
+            background-color: #0f3460;
+            border-radius: 10px;
+            padding: 20px 25px;
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-item .label {
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .summary-item .value {
+            color: #00d4ff;
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        .summary-item .value.red {
+            color: #ff6b6b;
+        }
+
+        .summary-item .value.green {
+            color: #51cf66;
+        }
+
+        .summary-item .value.yellow {
+            color: #ffd43b;
+        }
+
+        .legend {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+
+        .footer {
+            text-align: center;
+            color: #555;
+            font-size: 0.8em;
+            margin-top: 30px;
+        }
+
+        @media print {
+            body { background-color: white; color: black; }
+            .section { border-left-color: #333; background-color: #f9f9f9; }
+            th { background-color: #ddd; color: #333; }
+            td { border-bottom-color: #ddd; }
+            .a-acheter { color: red; border-color: red; }
+            .possede { color: green; border-color: green; }
+            .a-confirmer { color: orange; border-color: orange; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>BOM — Fraiseuse Semi-CNC</h1>
+    <p class="subtitle">Liste de matériel — Version 1.0 — 4 avril 2026</p>
+
+    <div class="legend">
+        <div class="legend-item"><span class="status-achat possede">Possédé</span> Déjà en inventaire</div>
+        <div class="legend-item"><span class="status-achat a-acheter">À acheter</span> À commander</div>
+        <div class="legend-item"><span class="status-achat a-confirmer">À confirmer</span> Besoin / modèle à valider</div>
+    </div>
+
+    <!-- ===================== CONTRÔLEUR PRINCIPAL ===================== -->
+    <div class="section">
+        <h2><span class="icon">🧠</span> Contrôleur principal</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Teensy 4.1</strong></td>
+                    <td>Microcontrôleur ARM Cortex-M7 @ 600 MHz, 1 MB RAM, 55 GPIO</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">~45$ USD — PJRC.com</td>
+                </tr>
+                <tr>
+                    <td><strong>Pins headers</strong></td>
+                    <td>Headers mâles pour Teensy 4.1 (si non soudés)</td>
+                    <td class="qty">2</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Souvent inclus avec le Teensy</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== INTERFACE UTILISATEUR ===================== -->
+    <div class="section">
+        <h2><span class="icon">🖥️</span> Interface utilisateur (Raspberry Pi)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Raspberry Pi 5 (4 GB)</strong></td>
+                    <td>SBC pour GUI PyQt6, logique haute niveau</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">~60-80$ USD</td>
+                </tr>
+                <tr>
+                    <td><strong>Écran tactile officiel 7"</strong></td>
+                    <td>Raspberry Pi Touch Display (connecteur DSI)</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">800×480, capacitif. Vérifier compatibilité v1 vs v2 avec Pi 5</td>
+                </tr>
+                <tr>
+                    <td><strong>Alimentation officielle Pi 5</strong></td>
+                    <td>27W USB-C (5.1V / 5A)</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Obligatoire — le Pi 5 est exigeant sur l'alimentation</td>
+                </tr>
+                <tr>
+                    <td><strong>Carte microSD</strong></td>
+                    <td>32 GB, classe A2 (ex: SanDisk Extreme)</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Classe A2 pour démarrage rapide</td>
+                </tr>
+                <tr>
+                    <td><strong>Boîtier Pi 5 + écran</strong></td>
+                    <td>Boîtier intégrant le Pi 5 et l'écran tactile 7"</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Montage propre pour environnement atelier</td>
+                </tr>
+                <tr>
+                    <td><strong>Câble USB-A vers Micro-B</strong></td>
+                    <td>Communication série Pi 5 ↔ Teensy 4.1</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Probablement déjà en inventaire</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== MOTEURS PAS À PAS ===================== -->
+    <div class="section">
+        <h2><span class="icon">⚙️</span> Moteurs pas à pas (3 axes)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Moteurs pas à pas</strong></td>
+                    <td>NEMA 23 ou NEMA 34 selon le couple requis par la fraiseuse</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Taille et couple à déterminer selon les axes X/Y/Z</td>
+                </tr>
+                <tr>
+                    <td><strong>Modules TMC5160</strong></td>
+                    <td>Drivers moteur SPI — stealthChop, stallGuard</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Modules SPI (ex: BigTreeTech TMC5160) ou drives StepperOnline</td>
+                </tr>
+                <tr>
+                    <td><strong>Alimentation moteurs</strong></td>
+                    <td>24V ou 48V DC selon les drivers et moteurs choisis</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Dimensionner selon courant total des 3 moteurs</td>
+                </tr>
+                <tr>
+                    <td><strong>Coupleurs d'arbre</strong></td>
+                    <td>Accouplement moteur → vis de la fraiseuse (flexible ou rigide)</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Diamètres à mesurer sur la fraiseuse</td>
+                </tr>
+                <tr>
+                    <td><strong>Supports moteur</strong></td>
+                    <td>Plaques de montage moteur sur la fraiseuse</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Fabrication maison probable</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== MESURE DE POSITION ===================== -->
+    <div class="section">
+        <h2><span class="icon">📏</span> Mesure de position</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Règles iGaging AbsoluteDRO Plus</strong></td>
+                    <td>#35-806-A, 0-6", protocole 52 bits BCD, connecteur USB Micro-B</td>
+                    <td class="qty">2</td>
+                    <td><span class="status-achat possede">Possédé</span></td>
+                    <td class="notes">Axes X et Y — installées sur la fraiseuse</td>
+                </tr>
+                <tr>
+                    <td><strong>Règle iGaging AbsoluteDRO Plus</strong></td>
+                    <td>#35-806-A (ou autre longueur selon axe Z)</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Axe Z — longueur à confirmer selon la course</td>
+                </tr>
+                <tr>
+                    <td><strong>Breakout board USB Micro-B femelle</strong></td>
+                    <td>Breakout 5 pins pour connecter les règles iGaging aux GPIO Teensy</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-acheter">À acheter</span></td>
+                    <td class="notes">Ce n'est PAS du USB — protocole propriétaire clock/data</td>
+                </tr>
+                <tr>
+                    <td><strong>Encodeurs à quadrature</strong></td>
+                    <td>SameSky AMT10E2 (incrémentaux, sur manivelles)</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Montés sur les manivelles X/Y/Z — vérifier si déjà en inventaire</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== CONTRÔLE MANUEL ===================== -->
+    <div class="section">
+        <h2><span class="icon">🕹️</span> Contrôle manuel</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Joystick 2 axes</strong></td>
+                    <td>Joystick analogique pour jog X/Y</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Type et modèle à choisir — industriel recommandé pour l'atelier</td>
+                </tr>
+                <tr>
+                    <td><strong>Bouton d'arrêt d'urgence</strong></td>
+                    <td>Coup de poing, normalement fermé</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">CRITIQUE — coupe l'alimentation moteurs directement (hardware)</td>
+                </tr>
+                <tr>
+                    <td><strong>Boutons physiques divers</strong></td>
+                    <td>Boutons momentanés pour fonctions (home, zéro, etc.)</td>
+                    <td class="qty">—</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Nombre et fonctions à définir dans le cahier des charges</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== CÂBLAGE ET CONNECTIQUE ===================== -->
+    <div class="section">
+        <h2><span class="icon">🔌</span> Câblage et connectique</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Fil de câblage</strong></td>
+                    <td>22-24 AWG, couleurs variées</td>
+                    <td class="qty">—</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Signal iGaging, encodeurs, boutons</td>
+                </tr>
+                <tr>
+                    <td><strong>Câble blindé moteurs</strong></td>
+                    <td>4 conducteurs blindé (pour moteurs pas à pas)</td>
+                    <td class="qty">3</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Longueur selon installation — blindage recommandé (environnement bruité)</td>
+                </tr>
+                <tr>
+                    <td><strong>Connecteurs</strong></td>
+                    <td>GX12/GX16 ou autre connecteur aviation pour les moteurs</td>
+                    <td class="qty">—</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Permettre le démontage facile</td>
+                </tr>
+                <tr>
+                    <td><strong>Condensateurs découplage</strong></td>
+                    <td>0.1 µF céramique</td>
+                    <td class="qty">6</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Sur lignes Clock/Data iGaging — suppression de bruit</td>
+                </tr>
+                <tr>
+                    <td><strong>Résistances pull-up</strong></td>
+                    <td>47-100 kΩ</td>
+                    <td class="qty">6</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Sur lignes Clock/Data iGaging vers 3.3V</td>
+                </tr>
+                <tr>
+                    <td><strong>Breadboard / PCB proto</strong></td>
+                    <td>Support pour câblage Teensy + composants passifs</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Breadboard pour proto, PCB custom pour version finale</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== BOÎTIER ET MÉCANIQUE ===================== -->
+    <div class="section">
+        <h2><span class="icon">🏗️</span> Boîtier et mécanique</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Statut</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Boîtier électronique</strong></td>
+                    <td>Boîtier fermé pour Teensy, drivers, alimentation</td>
+                    <td class="qty">1</td>
+                    <td><span class="status-achat a-confirmer">À confirmer</span></td>
+                    <td class="notes">Protection contre poussière et copeaux — IP54+ recommandé</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===================== RÉSUMÉ ===================== -->
+    <div class="summary">
+        <div class="summary-item">
+            <div class="label">À acheter</div>
+            <div class="value red">8</div>
+        </div>
+        <div class="summary-item">
+            <div class="label">Déjà possédé</div>
+            <div class="value green">2</div>
+        </div>
+        <div class="summary-item">
+            <div class="label">À confirmer</div>
+            <div class="value yellow">15</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>BOM v1.0 — Projet Fraiseuse Semi-CNC — Généré le 4 avril 2026</p>
+        <p>Les items « À confirmer » seront précisés avec le cahier des charges détaillé.</p>
+    </div>
+
+</body>
+</html>

@@ -13,11 +13,28 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(curl -s -L \"https://www.yuriystoys.com/2015/12/connecting-igaging-absolute-scales-to.html\")",
+      "Bash(python3 -c ':*)",
+      "Bash(where python:*)",
+      "Bash(C:/Python313/python.exe -c ':*)",
+      "WebFetch(domain:www.terrywerm.com)",
+      "WebFetch(domain:desttinghim.github.io)",
+      "WebFetch(domain:www.hobby-machinist.com)",
+      "WebFetch(domain:www.imajeenyus.com)",
+      "WebFetch(domain:www.instructables.com)",
+      "WebFetch(domain:circuitpython-mitutoyo.readthedocs.io)",
+      "WebFetch(domain:forum.arduino.cc)",
+      "WebFetch(domain:newscrewdriver.com)",
+      "Bash(git pull:*)",
+      "Bash(cp \"C:/Users/electro1/.claude/projects/--billmousfs2-WD-5TB---Datas-Stephane-----Machining---Projets-05-Fraiseuse-semi-cnc/memory/\"*.md \"//billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/claude-config/projects/Fraiseuse-semi-cnc/memory/\")",
+      "Bash(cp \"C:/Users/electro1/.claude/CLAUDE.md\" \"//billmousfs2/WD_5TB/-=Datas Stephane=-/-=Claude Code=-/claude-config/CLAUDE.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\electro1\\.claude\\projects\\--billmousfs2-WD-5TB---Datas-Stephane-----Machining---Projets-05-Fraiseuse-semi-cnc\\memory",
-      "C:\\Users\\electro1\\.claude"
+      "C:\\Users\\electro1\\.claude",
+      "\\\\billmousfs2\\WD_5TB\\-=Datas Stephane=-\\-=Machining=-\\Projets\\05-Fraiseuse semi-cnc\\teensy",
+      "\\\\billmousfs2\\WD_5TB\\-=Datas Stephane=-\\-=Machining=-\\Projets\\05-Fraiseuse semi-cnc\\teensy\\src"
     ]
   }
 }

@@ -77,6 +77,21 @@ Sur une nouvelle machine, copier le contenu de `Claude memory/` vers :
 - Objectif : DRO custom + boucle d'asservissement position (règle → Teensy → moteur)
 - Voir `Claude memory/project_igaging.md` pour les détails complets
 
+### Câblage vérifié (points de test sur la tête de lecture)
+| Pin breakout | Signal tête | Pin Teensy |
+|---|---|---|
+| 5V/VCC | VDD | 3.3V |
+| D+ | DATA | Pin 2 |
+| D- | CLK | Pin 3 |
+| ID | REQ | GND |
+| GND | GND | GND |
+
+### État du décodage (2026-04-12)
+- Signal clock reçu (~1.1 kHz), trames 52 bits lues avec header OK
+- Méthode polling (pas interruptions) — plus fiable pour ce protocole
+- Encodage position (binaire vs BCD) à valider — valeurs brutes trop élevées
+- Prochaine étape : comparer lectures avec afficheur LCD iGaging
+
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)
 - stallGuard TMC5160 : envisager pour détection fin de course sans capteur physique

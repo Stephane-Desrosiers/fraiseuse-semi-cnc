@@ -1,0 +1,242 @@
+/*
+ * ============================================================================
+ * Projet : Fraiseuse Semi-CNC
+ * Fichier : main.cpp
+ * Description : Test de lecture d'une règle iGaging AbsoluteDRO Plus
+ *               Protocole 52 bits (13 nibbles), encodage BINAIRE (pas BCD)
+ *
+ * Matériel :
+ *   - Teensy 4.1
+ *   - Règle iGaging AbsoluteDRO Plus #35-806-A (0-6")
+ *   - Breakout board USB Micro-B femelle
+ *   - Résistances pull-up 82K sur Clock et Data vers 3.3V
+ *   - Condensateur 100nF entre GND et 3.3V
+ *
+ * Câblage breakout → Teensy :
+ *   GND et VCC(5V) du breakout → GND Teensy (VCC=REQ tiré à GND)
+ *   ID du breakout → 3.3V Teensy (alimentation de la règle)
+ *   D+ du breakout → Pin CLK_PIN (Clock)
+ *   D- du breakout → Pin DATA_PIN (Data)
+ *
+ * Note : Si les lectures ne font pas de sens, essayer d'inverser
+ *        CLK_PIN et DATA_PIN (le pinout Mini-B et Micro-B diffèrent)
+ *
+ * Protocole iGaging AbsoluteDRO Plus (52 bits) :
+ *   - 13 nibbles de 4 bits, LSB transmis en premier
+ *   - Nibbles 0-3 : Header (0xF = 1111)
+ *   - Nibble 4 : Signe (0 = positif, 8 = négatif)
+ *   - Nibbles 5-10 : Position en BINAIRE (24 bits, en centièmes de mm)
+ *   - Nibble 11 : Position du point décimal
+ *   - Nibble 12 : Unités (toujours mm)
+ *   - La règle génère son propre clock (~2 kHz)
+ *   - REQ tiré à GND = transmission continue
+ *
+ * Communication :
+ *   Serial (USB) → sera utilisé plus tard pour communiquer avec Python
+ *   Serial1 → debug via Serial Monitor PlatformIO (utilisé ici)
+ * ============================================================================
+ */
+
+#include <Arduino.h>
+
+// ============================================================================
+// Configuration des pins
+// ============================================================================
+
+// Pins pour la règle iGaging axe X
+// Si les lectures sont incohérentes, inverser ces deux pins
+const int CLK_PIN  = 2;   // D+ du breakout → Clock (interrupt capable)
+const int DATA_PIN = 3;   // D- du breakout → Data
+
+// ============================================================================
+// Variables globales pour la capture des bits
+// ============================================================================
+
+// Buffer pour stocker les 52 bits reçus (13 nibbles × 4 bits)
+volatile uint64_t raw_bits = 0;
+
+// Compteur de bits reçus dans la trame en cours
+volatile int bit_count = 0;
+
+// Timestamp du dernier front d'horloge (pour détecter le début d'une nouvelle trame)
+volatile unsigned long last_clock_us = 0;
+
+// Flag : une trame complète de 52 bits est prête à être décodée
+volatile bool frame_ready = false;
+
+// Dernière trame complète (copiée depuis raw_bits quand frame_ready = true)
+volatile uint64_t completed_frame = 0;
+
+// ============================================================================
+// Seuil de temps pour détecter une nouvelle trame
+// ============================================================================
+// Le clock tourne à ~2 kHz → ~500 µs entre chaque bit
+// Un gap > 1000 µs entre deux clocks signifie qu'on est entre deux trames
+const unsigned long FRAME_GAP_US = 1000;
+
+// ============================================================================
+// Routine d'interruption — appelée à chaque front montant du Clock
+// ============================================================================
+void clock_isr() {
+    unsigned long now = micros();
+
+    // Détecter le début d'une nouvelle trame :
+    // Si le temps écoulé depuis le dernier clock dépasse FRAME_GAP_US,
+    // c'est qu'il y a eu une pause → nouvelle trame
+    if (now - last_clock_us > FRAME_GAP_US) {
+        // Si on avait exactement 52 bits, la trame précédente est complète
+        if (bit_count == 52) {
+            completed_frame = raw_bits;
+            frame_ready = true;
+        }
+        // Réinitialiser pour la nouvelle trame
+        raw_bits = 0;
+        bit_count = 0;
+    }
+
+    // Lire le bit Data et l'ajouter à la position courante
+    // LSB transmis en premier → on décale vers la gauche au fur et à mesure
+    if (bit_count < 52) {
+        if (digitalReadFast(DATA_PIN)) {
+            raw_bits |= ((uint64_t)1 << bit_count);
+        }
+        bit_count++;
+    }
+
+    last_clock_us = now;
+}
+
+// ============================================================================
+// Décodage d'une trame de 52 bits
+// ============================================================================
+void decode_frame(uint64_t frame) {
+    // --- Extraction des 13 nibbles (4 bits chacun, LSB first) ---
+    uint8_t nibbles[13];
+    for (int i = 0; i < 13; i++) {
+        nibbles[i] = (frame >> (i * 4)) & 0x0F;
+    }
+
+    // --- Vérification du header (nibbles 0-3 doivent être 0xF) ---
+    bool header_ok = (nibbles[0] == 0xF) && (nibbles[1] == 0xF) &&
+                     (nibbles[2] == 0xF) && (nibbles[3] == 0xF);
+
+    // --- Signe (nibble 4) : 0 = positif, 8 = négatif ---
+    bool is_negative = (nibbles[4] == 0x8);
+
+    // --- Position : nibbles 5 à 10 forment un nombre BINAIRE de 24 bits ---
+    // Ce n'est PAS du BCD ! Chaque nibble peut valoir 0x0 à 0xF
+    // La valeur résultante est en centièmes de mm (résolution 0.01 mm)
+    long position = 0;
+    for (int i = 5; i <= 10; i++) {
+        position |= ((long)nibbles[i] << ((i - 5) * 4));
+    }
+
+    // Appliquer le signe
+    if (is_negative) {
+        position = -position;
+    }
+
+    // --- Conversion en mm ---
+    float position_mm = position / 100.0;
+
+    // --- Conversion en pouces ---
+    float position_inch = position_mm / 25.4;
+
+    // --- Nibble 11 : position du point décimal ---
+    uint8_t decimal_point = nibbles[11];
+
+    // --- Nibble 12 : unités ---
+    uint8_t units = nibbles[12];
+
+    // ====================================================================
+    // Affichage sur Serial1 (debug via Serial Monitor PlatformIO)
+    // ====================================================================
+
+    // Afficher les nibbles bruts pour diagnostic
+    Serial.print("Nibbles: ");
+    for (int i = 0; i < 13; i++) {
+        Serial.print(nibbles[i], HEX);
+        Serial.print(" ");
+    }
+
+    // Afficher le statut du header
+    Serial.print(" | Header: ");
+    Serial.print(header_ok ? "OK" : "ERREUR");
+
+    // Afficher la position décodée
+    Serial.print(" | Position: ");
+    Serial.print(position_mm, 2);
+    Serial.print(" mm (");
+    Serial.print(position_inch, 4);
+    Serial.print(" in)");
+
+    // Afficher les métadonnées
+    Serial.print(" | Dec:");
+    Serial.print(decimal_point);
+    Serial.print(" Unit:");
+    Serial.print(units);
+
+    // Valeur brute pour diagnostic
+    Serial.print(" | Brut:");
+    Serial.print(position);
+
+    Serial.println();
+}
+
+// ============================================================================
+// Setup
+// ============================================================================
+void setup() {
+    // Port USB (Serial) — communication avec le PC / Serial Monitor
+    Serial.begin(115200);
+
+    // Attendre que le port USB série soit prêt (important pour Teensy)
+    // Timeout de 3 secondes pour ne pas bloquer si aucun moniteur connecté
+    unsigned long start = millis();
+    while (!Serial && (millis() - start < 3000)) {
+        // Attendre que le Serial Monitor se connecte
+    }
+
+    // Petit délai supplémentaire pour stabiliser la connexion
+    delay(500);
+
+    // Port debug (Serial1) — disponible pour debug séparé si nécessaire
+    Serial1.begin(115200);
+
+    // Configurer les pins
+    pinMode(CLK_PIN, INPUT);    // Pull-up externe 82K déjà en place
+    pinMode(DATA_PIN, INPUT);   // Pull-up externe 82K déjà en place
+
+    // Attacher l'interruption sur le front montant du Clock
+    // Note : si les lectures sont incohérentes, essayer FALLING au lieu de RISING
+    attachInterrupt(digitalPinToInterrupt(CLK_PIN), clock_isr, RISING);
+
+    // Message de démarrage
+    Serial.println("====================================");
+    Serial.println("iGaging AbsoluteDRO Plus — Test de lecture");
+    Serial.println("Teensy 4.1 — Protocole 52 bits binaire");
+    Serial.println("====================================");
+    Serial.println("En attente de données de la règle...");
+    Serial.println();
+
+    // Même message sur USB pour debug si on n'a pas de Serial1
+    Serial.println("iGaging AbsoluteDRO Plus — Test de lecture");
+    Serial.println("En attente de données...");
+}
+
+// ============================================================================
+// Boucle principale
+// ============================================================================
+void loop() {
+    // Vérifier si une trame complète est prête
+    if (frame_ready) {
+        // Copier la trame de façon atomique (désactiver les interrupts brièvement)
+        noInterrupts();
+        uint64_t frame = completed_frame;
+        frame_ready = false;
+        interrupts();
+
+        // Décoder et afficher la trame
+        decode_frame(frame);
+    }
+}
