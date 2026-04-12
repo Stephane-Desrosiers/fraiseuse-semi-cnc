@@ -2,17 +2,18 @@
  * ============================================================================
  * Projet : Fraiseuse Semi-CNC
  * Fichier : main.cpp
- * Description : Lecture règle iGaging AbsoluteDRO Plus par POLLING
- *               Protocole 52 bits (13 nibbles)
+ * Description : Lecture règle iGaging AbsoluteDRO Plus par POLLING v2
+ *               Synchronisation de trame améliorée
  *
  * Câblage breakout → Teensy (vérifié avec points de test sur la tête) :
- *   GND du breakout → GND Teensy
- *   5V/VCC du breakout → 3.3V Teensy (VDD alimentation de la règle)
- *   D+ du breakout → Pin 2 Teensy (DATA de la tête)
- *   D- du breakout → Pin 3 Teensy (CLK de la tête)
- *   ID du breakout → GND Teensy (REQ tiré à masse = transmission continue)
+ *   5V/VCC breakout → 3.3V Teensy (VDD alimentation)
+ *   D+     breakout → Pin 2 Teensy (DATA)
+ *   D-     breakout → Pin 3 Teensy (CLK)
+ *   ID     breakout → GND Teensy (REQ tiré à masse)
+ *   GND    breakout → GND Teensy
  *
- * Méthode : polling (pas d'interruptions) — plus fiable pour ce protocole
+ * Pull-ups 82K sur DATA et CLK vers 3.3V
+ * Condensateur 100nF entre 3.3V et GND
  * ============================================================================
  */
 
@@ -24,64 +25,104 @@
 const int CLK_PIN  = 3;   // D- du breakout = CLK de la tête iGaging
 const int DATA_PIN = 2;   // D+ du breakout = DATA de la tête iGaging
 
+// Seuil pour détecter le gap inter-trame (en µs)
+// Le clock tourne à ~1.1 kHz → ~900 µs entre bits
+// Le gap entre trames doit être plus long que ça
+const unsigned long FRAME_GAP_US = 2000;
+
 // ============================================================================
-// Lire un nibble (4 bits) en polling — méthode Mitutoyo/iGaging
-// Attend le front descendant du clock puis lit le bit data
+// Attendre le début d'une nouvelle trame
+// Cherche un moment où le clock reste stable (HIGH) pendant > FRAME_GAP_US
+// puis attend le premier front descendant = bit 0
 // ============================================================================
-uint8_t read_nibble() {
-    uint8_t nibble = 0;
-    for (int bit = 0; bit < 4; bit++) {
-        // Attendre que le clock monte (HIGH)
-        while (digitalReadFast(CLK_PIN) == LOW) {}
-        // Attendre que le clock redescende (LOW) = front descendant
-        while (digitalReadFast(CLK_PIN) == HIGH) {}
-        // Lire le bit data maintenant (après le front descendant)
-        if (digitalReadFast(DATA_PIN)) {
-            nibble |= (1 << bit);  // LSB first
+bool wait_for_frame_start() {
+    unsigned long timeout = millis();
+
+    // Étape 1 : attendre que le clock soit en train de bouger
+    //           (on est peut-être déjà dans un gap, il faut d'abord
+    //            voir au moins une transition pour savoir que ça tourne)
+
+    // Étape 2 : chercher un gap — le clock reste HIGH pendant > FRAME_GAP_US
+    while (true) {
+        // Timeout global de 500ms
+        if (millis() - timeout > 500) return false;
+
+        // Attendre que le clock soit HIGH
+        unsigned long wait_start = micros();
+        while (digitalReadFast(CLK_PIN) == LOW) {
+            if (micros() - wait_start > 100000) return false;
         }
+
+        // Mesurer combien de temps le clock reste HIGH
+        unsigned long high_start = micros();
+        while (digitalReadFast(CLK_PIN) == HIGH) {
+            // Si le clock reste HIGH assez longtemps = on est dans un gap
+            if (micros() - high_start > FRAME_GAP_US) {
+                // Trouvé un gap ! Maintenant attendre le premier front descendant
+                // qui marque le début de la nouvelle trame
+                unsigned long gap_wait = micros();
+                while (digitalReadFast(CLK_PIN) == HIGH) {
+                    if (micros() - gap_wait > 100000) return false;
+                }
+                // Le clock vient de descendre → c'est le début du bit 0
+                return true;
+            }
+        }
+        // Le clock est redescendu trop vite — c'était juste un bit normal
+        // On continue à chercher le gap
     }
-    return nibble;
 }
 
 // ============================================================================
-// Lire une trame complète de 13 nibbles (52 bits)
+// Lire les 52 bits (13 nibbles) après synchronisation
+// On est positionné juste après le premier front descendant (bit 0)
 // ============================================================================
-bool read_frame(uint8_t* nibbles) {
-    // D'abord, attendre un gap (pause dans le clock) qui marque
-    // le début d'une nouvelle trame
-    // Attendre que le clock soit HIGH (état de repos)
-    unsigned long timeout = micros();
-    while (digitalReadFast(CLK_PIN) == LOW) {
-        if (micros() - timeout > 100000) return false;  // timeout 100ms
-    }
-
-    // Attendre un gap : le clock reste HIGH pendant > 500µs
-    // (entre les trames, le clock fait une pause)
-    timeout = micros();
-    while (digitalReadFast(CLK_PIN) == HIGH) {
-        if (micros() - timeout > 100000) return false;  // timeout 100ms
-    }
-
-    // Le clock vient de descendre — c'est le début du premier bit
-    // On a raté le premier front descendant, lire le premier bit maintenant
-    nibbles[0] = 0;
+bool read_52_bits(uint8_t* nibbles) {
+    // Le premier front descendant vient de se produire
+    // Lire le bit 0 maintenant
+    uint8_t current_nibble = 0;
     if (digitalReadFast(DATA_PIN)) {
-        nibbles[0] |= (1 << 0);  // bit 0 du nibble 0
+        current_nibble |= 1;
     }
 
-    // Lire les 3 bits restants du nibble 0
-    for (int bit = 1; bit < 4; bit++) {
-        while (digitalReadFast(CLK_PIN) == LOW) {}
-        while (digitalReadFast(CLK_PIN) == HIGH) {}
+    // Lire les 51 bits restants
+    for (int bit = 1; bit < 52; bit++) {
+        // Attendre front montant (clock HIGH)
+        unsigned long t = micros();
+        while (digitalReadFast(CLK_PIN) == LOW) {
+            if (micros() - t > 5000) return false;  // timeout 5ms par bit
+        }
+        // Attendre front descendant (clock LOW)
+        t = micros();
+        while (digitalReadFast(CLK_PIN) == HIGH) {
+            if (micros() - t > 5000) return false;
+        }
+        // Lire le bit data
+        int nibble_index = bit / 4;
+        int bit_in_nibble = bit % 4;
+
+        if (bit_in_nibble == 0) {
+            current_nibble = 0;  // nouveau nibble
+        }
+
         if (digitalReadFast(DATA_PIN)) {
-            nibbles[0] |= (1 << bit);
+            current_nibble |= (1 << bit_in_nibble);
+        }
+
+        // Stocker le nibble quand les 4 bits sont lus
+        if (bit_in_nibble == 3) {
+            nibbles[nibble_index] = current_nibble;
         }
     }
 
-    // Lire les nibbles 1 à 12
-    for (int i = 1; i < 13; i++) {
-        nibbles[i] = read_nibble();
-    }
+    // Le nibble 0 a été lu bit par bit mais jamais stocké via la boucle
+    // (le premier bit était hors boucle). On doit le gérer.
+    // En fait, le bit 0 met current_nibble, puis bits 1-3 complètent
+    // et stockent nibbles[0] quand bit=3, bit_in_nibble=3. Vérifions :
+    // bit=0 → hors boucle, current_nibble = bit0
+    // bit=1 → nibble_index=0, bit_in_nibble=1 → continue
+    // bit=2 → nibble_index=0, bit_in_nibble=2 → continue
+    // bit=3 → nibble_index=0, bit_in_nibble=3 → nibbles[0] = current_nibble ✓
 
     return true;
 }
@@ -99,7 +140,8 @@ void setup() {
     pinMode(DATA_PIN, INPUT);
 
     Serial.println("====================================");
-    Serial.println("iGaging AbsoluteDRO Plus — Polling");
+    Serial.println("iGaging AbsoluteDRO Plus — Polling v2");
+    Serial.println("Synchro par détection de gap inter-trame");
     Serial.println("====================================");
 }
 
@@ -107,11 +149,19 @@ void setup() {
 // Boucle principale
 // ============================================================================
 void loop() {
-    uint8_t nibbles[13];
+    uint8_t nibbles[13] = {0};
 
-    if (!read_frame(nibbles)) {
-        Serial.println("[ERREUR] Timeout — pas de signal clock");
+    // Synchroniser sur le début d'une trame
+    if (!wait_for_frame_start()) {
+        Serial.println("[ERREUR] Timeout — pas de gap détecté");
         delay(1000);
+        return;
+    }
+
+    // Lire les 52 bits
+    if (!read_52_bits(nibbles)) {
+        Serial.println("[ERREUR] Timeout pendant lecture des bits");
+        delay(500);
         return;
     }
 
@@ -119,10 +169,27 @@ void loop() {
     bool header_ok = (nibbles[0] == 0xF) && (nibbles[1] == 0xF) &&
                      (nibbles[2] == 0xF) && (nibbles[3] == 0xF);
 
+    // Si le header est mauvais, ignorer cette trame (désynchronisé)
+    if (!header_ok) {
+        Serial.print("[SYNC] Header invalide: ");
+        for (int i = 0; i < 4; i++) {
+            Serial.print(nibbles[i], HEX);
+            Serial.print(" ");
+        }
+        Serial.println("— trame ignorée");
+        return;
+    }
+
+    // --- Filtrer les trames corrompues ---
+    // Les trames valides ont toujours Dec=2 et Unit=0
+    if (nibbles[11] != 2 || nibbles[12] != 0) {
+        return;  // trame corrompue, ignorer silencieusement
+    }
+
     // --- Signe ---
     bool is_negative = (nibbles[4] == 0x8);
 
-    // --- Position : nibbles 5-10, interprétation BINAIRE (24 bits) ---
+    // --- Position : interprétation BINAIRE (24 bits) ---
     long pos_bin = 0;
     for (int i = 5; i <= 10; i++) {
         pos_bin |= ((long)nibbles[i] << ((i - 5) * 4));
@@ -130,28 +197,24 @@ void loop() {
     if (is_negative) pos_bin = -pos_bin;
     float mm_bin = pos_bin / 100.0;
 
-    // --- Position : nibbles 5-10, interprétation BCD ---
-    // nibble 10 = MSD, nibble 5 = LSD
+    // --- Position : interprétation BCD (nibble 5 = MSD, nibble 10 = LSD) ---
+    // Lecture : d5 d6 d7 d8 d9 d10 forme le nombre décimal
+    // Exemple : nibbles {0,3,3,1,1,3} → 033113 → /100 = 331.13 mm
     long pos_bcd = 0;
-    long mult = 1;
     for (int i = 5; i <= 10; i++) {
-        pos_bcd += nibbles[i] * mult;
-        mult *= 10;
+        pos_bcd = pos_bcd * 10 + nibbles[i];
     }
     if (is_negative) pos_bcd = -pos_bcd;
     float mm_bcd = pos_bcd / 100.0;
 
     // --- Affichage ---
-    Serial.print("Nibbles: ");
+    Serial.print("Nib: ");
     for (int i = 0; i < 13; i++) {
         Serial.print(nibbles[i], HEX);
         Serial.print(" ");
     }
 
-    Serial.print(" | Hdr:");
-    Serial.print(header_ok ? "OK" : "ERR");
-
-    Serial.print(" | BIN:");
+    Serial.print("| BIN:");
     Serial.print(mm_bin, 2);
     Serial.print("mm");
 
@@ -164,6 +227,6 @@ void loop() {
     Serial.print(" U:");
     Serial.println(nibbles[12]);
 
-    // Petite pause pour ne pas inonder le moniteur
-    delay(200);
+    // Pause pour lisibilité
+    delay(250);
 }

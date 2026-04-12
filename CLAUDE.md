@@ -86,11 +86,13 @@ Sur une nouvelle machine, copier le contenu de `Claude memory/` vers :
 | ID | REQ | GND |
 | GND | GND | GND |
 
-### État du décodage (2026-04-12)
-- Signal clock reçu (~1.1 kHz), trames 52 bits lues avec header OK
-- Méthode polling (pas interruptions) — plus fiable pour ce protocole
-- Encodage position (binaire vs BCD) à valider — valeurs brutes trop élevées
-- Prochaine étape : comparer lectures avec afficheur LCD iGaging
+### Protocole décodé et fonctionnel (2026-04-12)
+- Encodage **BCD** confirmé (nibble 5=MSD → nibble 10=LSD, diviser par 100 pour mm)
+- Méthode **polling** au front descendant du clock (interruptions instables)
+- Synchro par détection gap inter-trame (clock HIGH > 2ms)
+- Filtrage trames corrompues (Dec≠2 ou Unit≠0)
+- Course mesurée : -0.79mm à 330.88mm (~331.67mm)
+- Règles = 12" (pas 6" comme initialement noté)
 
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)
