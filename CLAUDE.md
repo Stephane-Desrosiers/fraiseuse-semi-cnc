@@ -88,11 +88,12 @@ Sur une nouvelle machine, copier le contenu de `Claude memory/` vers :
 
 ### Protocole décodé et fonctionnel (2026-04-12)
 - Encodage **BCD** confirmé (nibble 5=MSD → nibble 10=LSD, diviser par 100 pour mm)
-- Méthode **polling** au front descendant du clock (interruptions instables)
+- Méthode **interruptions FALLING** validée : ~10 Hz, 0% erreur, non-bloquant
 - Synchro par détection gap inter-trame (clock HIGH > 2ms)
 - Filtrage trames corrompues (Dec≠2 ou Unit≠0)
 - Course mesurée : -0.79mm à 330.88mm (~331.67mm)
 - Règles = 12" (pas 6" comme initialement noté)
+- 3 axes en parallèle possible (~10 Hz chacun, interruptions indépendantes)
 
 ## Notes importantes
 - Debouncing : hardware + software recommandé (environnement bruité fraiseuse)
